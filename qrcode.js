@@ -50,24 +50,27 @@ string_bit_cal : function(s1,s2,ind){
 	
 	switch(ind){
 	 case "xor" :
-		s1.each_byte(function(b){
-			res += Qrcode.charcode[(b ^ s2.charCodeAt(i))]
+		var bytes = s1.unpack("C*");
+		for(var j=0;j<bytes.length;j++) {
+			res += Qrcode.charcode[(bytes[j] ^ s2.charCodeAt(i))]
 			i += 1
-		})
+		}
 		res += s2[s1.length,left_length]
 		break
 	  case "or" :
-		s1.each_byte(function(b){
-			res += Qrcode.charcode[(b | s2.charCodeAt(i))]
+		var bytes = s1.unpack("C*");
+		for(var j=0;j<bytes.length;j++) {
+			res += Qrcode.charcode[(bytes[j] | s2.charCodeAt(i))]
 			i += 1
-		})
+		}
 		res += s2[s1.length,left_length]
 		break
 	  case "and" :
-		s1.each_byte(function(b){
-			res += Qrcode.charcode[(b & s2.charCodeAt(i))]
+		var bytes = s1.unpack("C*");
+		for(var j=0;j<bytes.length;j++) {
+			res += Qrcode.charcode[(bytes[j] & s2.charCodeAt(i))]
 			i += 1
-		})
+		}
 		res += Qrcode.charcode[(0)].x(left_length)
 		break
 	}
@@ -79,7 +82,10 @@ string_bit_cal : function(s1,s2,ind){
 
 string_bit_not : function(s1){
 	res=""
-	s1.each_byte(function(b){res += Qrcode.charcode[(256 + ~b)]})
+	var bytes = s1.unpack("C*");
+	for(var j=0;j<bytes.length;j++) {
+		res += Qrcode.charcode[(256 + ~bytes[j])]
+	}
 	return(res)
 },
 
@@ -111,7 +117,10 @@ set_structureappend : function(m,n,p){
 cal_structureappend_parity : function(originaldata){
 	if (originaldata.length>1) {
 		structureappend_parity=0
-		originaldata.each_byte(function(b){structureappend_parity^=b})
+		var bytes = originaldata.unpack("C*");
+		for(var j=0;j<bytes.length;j++) {
+			structureappend_parity^=bytes[j]
+		}
 		return structureappend_parity
 	}
 },

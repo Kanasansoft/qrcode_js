@@ -1,0 +1,267 @@
+
+<title>テスト用</title>
+
+<script src="ie_xmlhttp.js"></script>
+<script src="extra.js"></script>
+<script src="json.js"></script>
+<script src="File.js"></script>
+<script src="qrcode.js"></script>
+
+<style>
+body{
+background : #CCC
+}
+div#table{
+	background : #FFF;
+	padding : 10px;
+}
+table{
+	background : #FFF;
+}
+td{
+	padding : 0;
+	margin : 0;
+	width : 4px;
+	height : 4px;
+	border : none;
+}
+.black{
+	background : #000
+}
+.white{
+	background : #FFF
+}
+</style>
+テスト<button onclick="test('src'.element().value)">評価</button>
+<textarea style="width:100%;height:20%" id="src">
+var q = new Qrcode;
+return q.make_qrcode("a");
+</textarea>
+<textarea style="width:100%;height:20%" id="debug"></textarea>
+<br>
+<button onclick="genTable('debug'.element().value)">テーブル</button>
+<div id="table"></div>
+
+<script>
+
+
+function test(v){
+	try{
+		"debug".element().value = Function("",v)();
+	}catch(e){
+		"debug".element().value = e.toJSON();
+	}
+}
+function genTable(src){
+	var data = src.split("\n");
+	var buf = [];
+	buf.push("<table cellspacing=0 border=0>");
+	var b = "<td class='black'>";
+	var w = "<td class='white'>";
+	data.forEach(function(v){
+		buf.push("<tr>");
+		buf.push(
+			v.replace(/(0)|(1)/g,function($0,$1,$2){
+				return $1 ? w : b
+			})
+		)
+		buf.push("</tr>");
+	})
+	buf.push("</table>");
+	"table".element().innerHTML = buf.join("");
+}
+
+
+function byteSplit(str){
+	var buf = [];
+	for(var pos = 0;pos < str.length;pos++){
+		var c = str.charCodeAt(pos);
+		if(c > 255){
+			var bytes = encodeURI(str).replace(/%/g,"");
+			for(var i=0;i < bytes.length;i+=2){
+				buf.push(String.fromCharCode(
+					parseInt(bytes.charAt(i)+bytes.charAt(i+1),16)
+				))
+			}
+		}else{
+			buf.push(str.charAt(pos))
+		}
+	}
+	return buf.join("")
+}
+String.prototype.element = function(){
+	return document.getElementById(this)
+}
+String.prototype.x = function (l) {
+    for(var i=0,tmp=[];i<l;tmp[i++]=this);
+    return tmp.join("")
+}
+Function.prototype.ruby_slice_support = function(){
+	var body = this.getbody();
+	var m = body.replace(/([\w\]])\[\(*([^\[]*?),([^\[]*?)\)*\]/g,
+		function($0,$1,$2,$3){
+			return [$1,".ruby_slice(",$2,",",$3,")"].join("")
+		}
+	).replace(/(\w+)\.ruby_slice\((.*?)\)\s*=\s*(.*?)[;\n]/g,
+		function($0,$1,$2,$3){
+			return [$1,"=",$1,".ruby_slice(",$2,").eq(",$3,");\n"].join("")
+		}
+	);
+	new_func = new Function(this.getargs(),m);
+	return new_func;
+}
+Function.prototype.forcePrivate = function(){
+	var body = this.getbody();
+	var list = [];
+	var m = body.replace(/[^\.\w](\w+)(?:[ ]*=)/g,function(){
+		list.push(arguments[1])
+	});
+	if(list.length == 0){return this}
+	var priv = "var " + list.uniq() + ";\n";
+	new_func = new Function(
+		this.getargs(), priv + body
+	);
+	return new_func;
+}
+
+
+Object.prototype.to_s = function(){
+	return this.toString()
+}
+chr = String.fromCharCode;
+Number.prototype.chr = function(){
+	return String.fromCharCode(this)
+}
+Number.prototype.to_int = Number.prototype.to_i = function(){
+	return Math.floor(this)
+}
+Number.prototype.to_s = function(){
+	return this.toString()
+}
+
+Number.prototype.abs = function(){
+	return Math.abs(this)
+}
+String.prototype.to_i = function(){
+	return parseInt(this)
+}
+String.prototype.to_int = String.prototype.to_i;
+
+
+String.prototype.ruby_pos = function(){
+	for(var i=0;i<this.length;i++){this[i] = this.charCodeAt(i)};
+	alert(this[0]);
+	return this;
+}
+String.prototype.ruby_slice = function(offset,length){
+	var self = this;
+	var str = new String(this.substr(offset,length));
+	str.eq  = function(rval){
+		return self.substr(0,offset) + rval + self.substr(offset+length);
+	}
+	return str;
+}
+String.prototype.pack = function(){
+	var tmp = []
+	for(var i=0;i<this.length;i+=2){
+		tmp.push(
+			String.fromCharCode(
+				parseInt(this.charAt(i)+this.charAt(i+1),16)
+			)
+		)
+	}
+	return tmp.join("");
+}
+String.prototype.unpack = function(format){
+	var str = this;
+	if(format == "C"){
+		var res = [];
+		for(var i=0;i<str.length;i++) res[i] = str.charCodeAt(i);
+		return res;
+	}
+	if(format == "C*"){
+		var res = [];
+		for(var i=0;i<str.length;i++) res[i] = str.charCodeAt(i);
+		return res;
+	}
+}
+String.prototype.each_byte = function(func){
+	var bytes = this.unpack("C*");
+	for(var i=0;i<bytes.length;i++) func(bytes[i])
+}
+
+function Range(start,end,exclude_end){
+	this.start = start;
+	this.end   = end;
+	this.ex_end = exclude_end ? 1 : 0;
+}
+Range.prototype.collect = function(func){
+	var res = [];
+	for(var i=this.start;i<=this.end-this.ex_end;i++){
+		res.push(func())
+	}
+	return res;
+}
+Range.prototype.map = Range.prototype.collect;
+Array.prototype.fill = function(v){
+	for(var i=0;i<this.length;this[i++]=v);
+	return this
+}
+Regexp = RegExp;
+Regexp.compile = function(){
+	return RegExp.call(null,arguments);
+}
+RegExp.prototype.match = function(str) {
+  var matches
+  if (matches = this.exec(str)) {
+    var pos = str.search(this)
+    return(new MatchData(matches, str, pos))
+  }
+}
+
+function MatchData(matches, str, pos) {
+  this.matches = matches, this.string = str
+  this.begin = this.position = pos
+  this.match = matches[0]
+  this.captures = matches.slice(1)
+  this.end = pos + this.match.length
+  this.length = matches.length
+  this.preMatch = str.substr(0, pos)
+  this.postMatch = str.substr(this.end)
+}
+
+MatchData.prototype.toString = function() { return(this.match) }
+MatchData.prototype.toArray = function() { return(this.matches) }
+String.prototype.scan = function(pattern) {
+  var str = this, result = [], oldPos = -1, match, offset = 0
+  while (match = pattern.match(str)) {
+    if (match.end == match.begin)
+      throw("Can't have null length matches with scan()")
+    var newMatch = new MatchData(match.matches, match.string, match.position + offset)
+    result.push(newMatch)
+    str = match.postMatch
+    offset += match.toString().length
+  }
+  return(result)
+}
+String.prototype.count = function(s){
+	var c = 0;
+	var offset = 0;
+	while(1){
+		offset = this.indexOf(s,offset);
+		if(offset != -1){c++;offset++}else{break}
+	}
+	return c
+}
+
+var de = document.getElementById("debug");
+//Qrcode.prototype.make_qrcode = Qrcode.prototype.make_qrcode.forcePrivate().ruby_slice_support();
+
+Qrcode.prototype.string_bit_cal = Qrcode.prototype.string_bit_cal.ruby_slice_support();
+
+"string_bit_cal,string_bit_not,set_qrcode_version,set_qrcode_error_correct,get_qrcode_version,set_structureappend,cal_structureappend_parity".split(",").forEach(function(v){
+	Qrcode.prototype[v] = Qrcode.prototype[v].forcePrivate()
+})
+
+</script>
+

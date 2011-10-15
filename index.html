@@ -1,0 +1,362 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<title>Pure JavaScriptによるQRコード生成ライブラリ</title>
+</head>
+<style>
+h1{
+	background :#DDD;
+	border:1px solid #666;
+	font-size : 1em;
+	margin:0;
+	padding : 4px;
+}
+h2{
+	background : #E8EEFF;
+	font-size : 100%;
+	padding : 4px;
+	font-size : 100%;
+	border-top :1px solid #3165ce;
+	font-weight:normal;
+}
+dl{
+	margin-left:1em;
+}
+dd{padding:0.5em 0}
+address{
+	clear : both;
+	margin-top:1em;
+	text-align:right;
+}
+pre{
+	width : 95%;
+	height : 100px;
+	overflow :auto;
+	background: #EEE;
+	border:2px dotted #888;
+}
+li{
+	line-height:150%;
+}
+code{
+	background : #DEE;
+}
+p{
+	line-height:150%;
+	padding:0 1em
+}
+#srctext{
+	width : 100%;
+	height : 5em;
+}
+#debug{
+	width : 100%;
+	height : 10em;
+}
+#table{
+	width : 100%;
+	height : 10em;
+}
+#result{
+	border : 1px solid #000;
+	margin : 1em;
+	padding : 1em;
+}
+address{
+	font-family : serif
+}
+table{
+	background : #FFF;
+}
+td.black{
+	width : 4px;
+	height : 4px;
+	background : #000;
+	padding : 0;
+	margin : 0;
+}
+td.white{
+	width : 4px;
+	height : 4px;
+	background : #FFF;
+	padding : 0;
+	margin : 0;
+}
+
+</style>
+<script src="ie_xmlhttp.js"></script>
+<script src="extra.js"></script>
+<script src="json.js"></script>
+<script src="File.js"></script>
+<script src="qrcode.js"></script>
+<script>
+function byteSplit(str){
+	var buf = [];
+	for(var pos = 0;pos < str.length;pos++){
+		var c = str.charCodeAt(pos);
+		if(c > 255){
+			var bytes = encodeURI(str).replace(/%/g,"");
+			for(var i=0;i < bytes.length;i+=2){
+				buf.push(String.fromCharCode(
+					parseInt(bytes.charAt(i)+bytes.charAt(i+1),16)
+				))
+			}
+		}else{
+			buf.push(str.charAt(pos))
+		}
+	}
+	return buf.join("")
+}
+String.prototype.element = function(){
+	return document.getElementById(this)
+}
+String.prototype.x = function (l) {
+    for(var i=0,tmp=[];i<l;tmp[i++]=this);
+    return tmp.join("")
+}
+String.prototype.chars = function(){
+	return this.split("")
+}
+
+Function.prototype.ruby_slice_support = function(){
+	var body = this.getbody();
+	var m = body.replace(/([\w\]])\[\(*([^\[]*?),([^\[]*?)\)*\]/g,
+		function($0,$1,$2,$3){
+			return [$1,".ruby_slice(",$2,",",$3,")"].join("")
+		}
+	).replace(/(\w+)\.ruby_slice\((.*?)\)\s*=\s*(.*?)[;\n]/g,
+		function($0,$1,$2,$3){
+			return [$1,"=",$1,".ruby_slice(",$2,").eq(",$3,");\n"].join("")
+		}
+	);
+	new_func = new Function(this.getargs(),m);
+	return new_func;
+}
+Function.prototype.forcePrivate = function(){
+	var body = this.getbody();
+	var list = [];
+	var m = body.replace(/[^\.\w](\w+)(?:[ ]*=)/g,function(){
+		list.push(arguments[1])
+	});
+	if(list.length == 0){return this}
+	var priv = "var " + list.uniq() + ";\n";
+	new_func = new Function(
+		this.getargs(), priv + body
+	);
+	return new_func;
+}
+
+
+Object.prototype.to_s = function(){
+	return this.toString()
+}
+chr = String.fromCharCode;
+Number.prototype.chr = function(){
+	return String.fromCharCode(this)
+}
+Number.prototype.to_int = Number.prototype.to_i = function(){
+	return Math.floor(this)
+}
+Number.prototype.to_s = function(){
+	return this.toString()
+}
+
+Number.prototype.abs = function(){
+	return Math.abs(this)
+}
+String.prototype.to_i = function(){
+	return parseInt(this)
+}
+String.prototype.to_int = String.prototype.to_i;
+
+
+String.prototype.ruby_pos = function(){
+	for(var i=0;i<this.length;i++){this[i] = this.charCodeAt(i)};
+	alert(this[0]);
+	return this;
+}
+String.prototype.ruby_slice = function(offset,length){
+	var self = this;
+	var str = new String(this.substr(offset,length));
+	str.eq  = function(rval){
+		return self.substr(0,offset) + rval + self.substr(offset+length);
+	}
+	return str;
+}
+String.prototype.pack = function(){
+	var tmp = []
+	for(var i=0;i<this.length;i+=2){
+		tmp.push(
+			String.fromCharCode(
+				parseInt(this.charAt(i)+this.charAt(i+1),16)
+			)
+		)
+	}
+	return tmp.join("");
+}
+String.prototype.unpack = function(format){
+	var str = this;
+	if(format == "C"){
+		var res = [];
+		for(var i=0;i<str.length;i++) res[i] = str.charCodeAt(i);
+		return res;
+	}
+	if(format == "C*"){
+		var res = [];
+		for(var i=0;i<str.length;i++) res[i] = str.charCodeAt(i);
+		return res;
+	}
+}
+String.prototype.each_byte = function(func){
+	var bytes = this.unpack("C*");
+	for(var i=0;i<bytes.length;i++) func(bytes[i])
+}
+
+function Range(start,end,exclude_end){
+	this.start = start;
+	this.end   = end;
+	this.ex_end = exclude_end ? 1 : 0;
+}
+Range.prototype.collect = function(func){
+	var res = [];
+	for(var i=this.start;i<=this.end-this.ex_end;i++){
+		res.push(func())
+	}
+	return res;
+}
+Range.prototype.map = Range.prototype.collect;
+Array.prototype.fill = function(v){
+	for(var i=0;i<this.length;this[i++]=v);
+	return this
+}
+Regexp = RegExp;
+Regexp.compile = function(){
+	return RegExp.call(null,arguments);
+}
+RegExp.prototype.match = function(str) {
+  var matches
+  if (matches = this.exec(str)) {
+    var pos = str.search(this)
+    return(new MatchData(matches, str, pos))
+  }
+}
+
+function MatchData(matches, str, pos) {
+  this.matches = matches, this.string = str
+  this.begin = this.position = pos
+  this.match = matches[0]
+  this.captures = matches.slice(1)
+  this.end = pos + this.match.length
+  this.length = matches.length
+  this.preMatch = str.substr(0, pos)
+  this.postMatch = str.substr(this.end)
+}
+
+MatchData.prototype.toString = function() { return(this.match) }
+MatchData.prototype.toArray = function() { return(this.matches) }
+String.prototype.scan = function(pattern) {
+  var str = this, result = [], oldPos = -1, match, offset = 0
+  while (match = pattern.match(str)) {
+    if (match.end == match.begin)
+      throw("Can't have null length matches with scan()")
+    var newMatch = new MatchData(match.matches, match.string, match.position + offset)
+    result.push(newMatch)
+    str = match.postMatch
+    offset += match.toString().length
+  }
+  return(result)
+}
+String.prototype.count = function(s){
+	var c = 0;
+	var offset = 0;
+	while(1){
+		offset = this.indexOf(s,offset);
+		if(offset != -1){c++;offset++}else{break}
+	}
+	return c
+}
+
+
+
+function makeqr(src){
+try{
+	var qr = new Qrcode;
+	var res = qr.make_qrcode(byteSplit(src));
+	"debug".element().value = res;
+	maketable(res)
+}catch(e){
+	"debug".element().value = e;
+}
+}
+function maketable(src){
+	var data = src.split(/\r\n|\r|\n/);
+	var buf = [];
+	buf.push("<table cellspacing=0 border=0>\n");
+	var b = "<td class='black'>";
+	var w = "<td class='white'>";
+	data.forEach(function(v){
+		buf.push("<tr>");
+		buf.push(v.chars().map(function(v){return (v=="0")?w:b}).join(""));
+		buf.push("</tr>\n");
+	})
+	buf.push("</table>");
+	var t = buf.join("");
+	"table".element().value  = t;
+	"result".element().innerHTML = t;
+}
+Function.prototype.add_bench = function(){
+	var self = this;
+	return function(){
+		var start = new Date;
+		var res = self.apply(this,arguments)
+		var end = new Date;
+		"bench".element().innerHTML = (end-start) + "ミリ秒";
+		return res;
+	}
+}
+makeqr = makeqr.add_bench();
+maketable = maketable.add_bench();
+
+Qrcode.prototype.string_bit_cal = Qrcode.prototype.string_bit_cal.ruby_slice_support();
+"string_bit_cal,string_bit_not,set_qrcode_version,set_qrcode_error_correct,get_qrcode_version,set_structureappend,cal_structureappend_parity".split(",").forEach(function(v){
+	Qrcode.prototype[v] = Qrcode.prototype[v].forcePrivate()
+})
+
+
+</script>
+<body>
+<h1>Pure JavaScriptによるQRコード生成ライブラリ</h1>
+
+<h2>これは何</h2>
+<p><a href="http://www.swetake.com/qr/">QRコード クラス ライブラリ for Ruby</a>をJavaScriptに移植したものです。
+<br>→ <a href="qrcode_js.zip">このフォルダを丸ごと圧縮したものをダウンロード</a>
+</p>
+<h2>目的</h2>
+<ul>
+<li>無駄なものにどれだけ情熱をささげられるかのテスト。
+</ul>
+<h2>注意</h2>
+<ul>
+<li>1GHzのマシンで5秒から10秒ぐらいかかります。ブラウザがクラッシュしても問題ない状態で試してください。
+<li>日本語はUTF-8エンコードで出力してます。多分ほとんどのリーダーで読み取れません。(携帯持ってないんで知らない)
+</ul>
+<h2>動作テスト</h2>
+処理時間 : <span id="bench"></span><br>
+
+変換する文字列　<button onclick="makeqr('srctext'.element().value)">文字列をQRコードに変換</button>
+<textarea id="srctext"></textarea>
+<table width="100%"><tr>
+<td>01の並びに変換したもの<button onclick="maketable('debug'.element().value)">テーブルに変換</button><td>テーブルタグに変換したもの
+<tr>
+	<td width="50%"><textarea id="debug"></textarea>
+	<td width="50%"><textarea id="table"></textarea>
+</tr></table>
+QRコードがここに
+<div id="result"></div>
+
+<address>Pure JavaScript QRcode generator by <a href="http://la.ma.la/blog/">ma.la</a></address>
+</body>
+</html>
+</body>

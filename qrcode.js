@@ -15,6 +15,14 @@ function Qrcode(){
 	this.initialize.apply(this,arguments)
 }
 
+(function(Qrcode){
+	var charcode = [];
+	for(var i=0;i<65536;i++){
+		charcode[i] = String.fromCharCode(i);
+	}
+	Qrcode.charcode = charcode;
+})(Qrcode);
+
 Qrcode.prototype.extend({
 
 initialize : function(){
@@ -43,24 +51,24 @@ string_bit_cal : function(s1,s2,ind){
 	switch(ind){
 	 case "xor" :
 		s1.each_byte(function(b){
-			res += (b ^ s2.charCodeAt(i)).chr()
+			res += Qrcode.charcode[(b ^ s2.charCodeAt(i))]
 			i += 1
 		})
 		res += s2[s1.length,left_length]
 		break
 	  case "or" :
 		s1.each_byte(function(b){
-			res += (b | s2.charCodeAt(i)).chr()
+			res += Qrcode.charcode[(b | s2.charCodeAt(i))]
 			i += 1
 		})
 		res += s2[s1.length,left_length]
 		break
 	  case "and" :
 		s1.each_byte(function(b){
-			res += (b & s2.charCodeAt(i)).chr()
+			res += Qrcode.charcode[(b & s2.charCodeAt(i))]
 			i += 1
 		})
-		res += chr(0).x(left_length)
+		res += Qrcode.charcode[(0)].x(left_length)
 		break
 	}
 //	alert("res" + res.unpack("C*"));
@@ -71,7 +79,7 @@ string_bit_cal : function(s1,s2,ind){
 
 string_bit_not : function(s1){
 	res=""
-	s1.each_byte(function(b){res += (256 + ~b).chr()})
+	s1.each_byte(function(b){res += Qrcode.charcode[(256 + ~b)]})
 	return(res)
 },
 
@@ -338,7 +346,7 @@ make_qrcode : function(qrcode_data_string){
     rs_temp = [];
     rs_temp[0] = "";
     while (i < max_data_codewords) {
-        rs_temp[rs_block_number] += codewords[i].chr();
+        rs_temp[rs_block_number] += Qrcode.charcode[codewords[i]];
         j += 1;
         if (j >= rs_block_order[rs_block_number] - rs_ecc_codewords) {
             j = 0;
@@ -394,8 +402,8 @@ make_qrcode : function(qrcode_data_string){
     while (k < max_modules_1side) {
         l = 0;
         while (l < max_modules_1side) {
-            hor_master += matrix_content[l][k].to_int().chr();
-            ver_master += matrix_content[k][l].to_int().chr();
+            hor_master += Qrcode.charcode[matrix_content[l][k].to_int()];
+            ver_master += Qrcode.charcode[matrix_content[k][l].to_int()];
             l += 1;
         }
         k += 1;
@@ -407,31 +415,31 @@ make_qrcode : function(qrcode_data_string){
         ptn_temp = [];
         bit = 1 << i;
         bit_r = (~bit) & 255;
-        bit_mask = bit.chr().x(all_matrix);
+        bit_mask = Qrcode.charcode[bit].x(all_matrix);
         hor = this.string_bit_cal(hor_master, bit_mask, "and");
         ver = this.string_bit_cal(ver_master, bit_mask, "and");
-        ver_and = this.string_bit_cal((((170).chr().x(max_modules_1side)) + ver), (ver + ((170).chr().x(max_modules_1side))), "and");
-        ver_or = this.string_bit_cal((((170).chr().x(max_modules_1side)) + ver), (ver + ((170).chr().x(max_modules_1side))), "or");
+        ver_and = this.string_bit_cal(((Qrcode.charcode[(170)].x(max_modules_1side)) + ver), (ver + (Qrcode.charcode[(170)].x(max_modules_1side))), "and");
+        ver_or = this.string_bit_cal(((Qrcode.charcode[(170)].x(max_modules_1side)) + ver), (ver + (Qrcode.charcode[(170)].x(max_modules_1side))), "or");
         hor = this.string_bit_not(hor);
         ver = this.string_bit_not(ver);
         ver_and = this.string_bit_not(ver_and);
         ver_or = this.string_bit_not(ver_or);
-        ver_and = ver_and.ruby_slice(all_matrix, 0).eq((170).chr());
-        ver_or = ver_or.ruby_slice(all_matrix, 0).eq((170).chr());
+        ver_and = ver_and.ruby_slice(all_matrix, 0).eq(Qrcode.charcode[(170)]);
+        ver_or = ver_or.ruby_slice(all_matrix, 0).eq(Qrcode.charcode[(170)]);
         k = max_modules_1side - 1;
         while (k >= 0) {
-            hor = hor.ruby_slice(k * max_modules_1side, 0).eq((170).chr());
-            ver = ver.ruby_slice(k * max_modules_1side, 0).eq((170).chr());
-            ver_and = ver_and.ruby_slice(k * max_modules_1side, 0).eq((170).chr());
-            ver_or = ver_or.ruby_slice(k * max_modules_1side, 0).eq((170).chr());
+            hor = hor.ruby_slice(k * max_modules_1side, 0).eq(Qrcode.charcode[(170)]);
+            ver = ver.ruby_slice(k * max_modules_1side, 0).eq(Qrcode.charcode[(170)]);
+            ver_and = ver_and.ruby_slice(k * max_modules_1side, 0).eq(Qrcode.charcode[(170)]);
+            ver_or = ver_or.ruby_slice(k * max_modules_1side, 0).eq(Qrcode.charcode[(170)]);
             k -= 1;
         }
-        hor = hor + (170).chr() + ver;
-        n1_search = ((255).chr() * 5) + "+|" + (bit_r.chr() * 5) + "+";
-        n2_search1 = bit_r.chr() + bit_r.chr() + "+";
-        n2_search2 = (255).chr() + (255).chr() + "+";
-        n3_search = bit_r.chr() + (255).chr() + bit_r.chr() + bit_r.chr() + bit_r.chr() + (255).chr() + bit_r.chr();
-        n4_search = bit_r.chr();
+        hor = hor + Qrcode.charcode[(170)] + ver;
+        n1_search = (Qrcode.charcode[(255)] * 5) + "+|" + (Qrcode.charcode[bit_r] * 5) + "+";
+        n2_search1 = Qrcode.charcode[bit_r] + Qrcode.charcode[bit_r] + "+";
+        n2_search2 = Qrcode.charcode[(255)] + Qrcode.charcode[(255)] + "+";
+        n3_search = Qrcode.charcode[bit_r] + Qrcode.charcode[(255)] + Qrcode.charcode[bit_r] + Qrcode.charcode[bit_r] + Qrcode.charcode[bit_r] + Qrcode.charcode[(255)] + Qrcode.charcode[bit_r];
+        n4_search = Qrcode.charcode[bit_r];
         hor_temp = hor;
         demerit_n3 = (hor_temp.scan(Regexp.compile(n3_search)).length) * 40;
         demerit_n4 = ((((ver.count(n4_search) * 100) / byte_num) - 50) / 5).abs().to_i() * 10;

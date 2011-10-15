@@ -1,1 +1,7 @@
-dummy
+移植されたQRコード生成ライブラリの高速化バージョン
+
+PHP版から移植されたRuby版を更にJavaScriptに移植されたライブラリの高速化バージョン。
+
+詳細は同梱されている「README.txt」「README.sjis」「readme_js.txt」を参照。
+
+ライセンスも移植元に沿う。
